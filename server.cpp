@@ -94,8 +94,23 @@ void server::listen_and_respond(){
 
         std::cout << "[PACKET RECEIVED] From " << client_ip << ":" << client_port << std::endl;
         std::cout << "Data: \"" << buffer << "\" (" << bytes_received << " bytes)" << std::endl;
+                
+        std::string req(buffer);
+        std::string response;
 
-        std::string response = "Server: Message received successfully!";
+        if(req.find("CHECK_SEATS") != std::string::npos){
+
+            response = "{\"status\":200,\"action\":\"CHECK_SEATS\",\"train_id\":\"705\",\"route\":\"Kyiv-Lviv\",\"available_seats\":42,\"price\":520}";
+        } else if(req.find("GET_BOARD") != std::string::npos){
+
+            response = "{\"status\":200,\"action\":\"GET_BOARD\",\"station\":\"Kyiv-Pas\",\"trains\":\"[705:Lviv:06:15|712:Kramatorsk:06:45]\"}";
+        } else if(req.find("PING") != std::string::npos){
+
+            response = "{\"status\":200,\"action\":\"PONG\",\"server\":\"Kyiv-Central\",\"status\":\"OK\"}";
+        } else{
+            
+            response = "{\"status\":400,\"error\":\"Unknown action\"}";
+        }
 
         ssize_t bytes_sent = sendto(sockfd, response.c_str(), response.length(), 0,
                                     (struct sockaddr*)&client_addr, client_len);

@@ -2,9 +2,9 @@
 #include <string>       
 #include <cstring>
 #include <chrono>     
-#include <sys/socket.h> // Головний заголовок: функції socket(), sendto(), recvfrom(), setsockopt()
-#include <netinet/in.h> // Структура sockaddr_in, константи AF_INET, IPPROTO_UDP
-#include <arpa/inet.h>  // Перетворення адрес: htons(), inet_pton()
+#include <sys/socket.h>
+#include <netinet/in.h> 
+#include <arpa/inet.h>  
 #include <unistd.h>     
 #include <cerrno>
 
@@ -13,6 +13,7 @@ class client{
     private:
         int sockfd;
         struct sockaddr_in serveradr;
+        std::chrono::high_resolution_clock::time_point start_time;
     public:
         void create_sockfd();
         void close_sockfd();
@@ -21,7 +22,7 @@ class client{
         void set_timeout(const int seconds);
 
         void send_message(const std::string &message);
-        void recive_message();
+        void recieve_message();
 };
 
 
@@ -84,6 +85,7 @@ void client::set_timeout(const int seconds){
 
 void client::send_message(const std::string &message){
 
+    start_time = std::chrono::high_resolution_clock::now();
     ssize_t sent_bytes = sendto(sockfd, message.c_str(), message.length(), 0, 
                             (struct sockaddr*)(&serveradr), sizeof(serveradr));
 
@@ -94,7 +96,7 @@ void client::send_message(const std::string &message){
     }
 }
 
-void client::recive_message(){
+void client::recieve_message(){
     char buffer[1024];
     struct sockaddr_in from_addr;
     socklen_t from_len = sizeof(from_addr);
@@ -113,6 +115,12 @@ void client::recive_message(){
 
     buffer[bytes_recv] = '\0';
     
+    auto end_time = std::chrono::high_resolution_clock::now();
+
+    auto duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+    double rtt_ms = duration_us / 1000.0;
+    std::cout << "[METRICS] RTT: " << rtt_ms << " ms (" << duration_us << " us)" << std::endl;
+
     std::cout << "[SERVER RESPONSE] Recieved: \"" << buffer << "\" (" << bytes_recv << " bytes)" << std::endl;
 }
 
@@ -130,8 +138,47 @@ int main(void){
 
     client_socket.setup_server("127.0.0.1", 9999);
 
-    client_socket.send_message("Hello world!");
-    client_socket.recive_message();
+    int choice = -1;
+
+    while (choice != 0) {
+
+        std::cout << "\n--- Select Action ---" << std::endl;
+        std::cout << "1. Check seats for Train #705 (CHECK_SEATS)" << std::endl;
+        std::cout << "2. Get station departure board (GET_BOARD)" << std::endl;
+        std::cout << "3. Diagnostics & latency check (PING)" << std::endl;
+        std::cout << "0. Exit" << std::endl;
+        std::cout << "Enter choice: ";
+
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(10000, '\n');
+            choice = -1;
+            std::cout << "Invalid input!" << std::endl;
+            
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                client_socket.send_message("{\"action\":\"CHECK_SEATS\",\"train_id\":\"705\"}");
+                client_socket.recieve_message();
+                break;
+            case 2:
+                client_socket.send_message("{\"action\":\"GET_BOARD\",\"station\":\"Kyiv-Pas\"}");
+                client_socket.recieve_message();
+                break;
+            case 3:
+                client_socket.send_message("{\"action\":\"PING\",\"client_id\":\"TERMINAL-01\"}");
+                client_socket.recieve_message();
+                break;
+            case 0:
+                std::cout << "Exiting client..." << std::endl;
+                break;
+            default:
+                std::cout << "Invalid choice! Please select 0, 1, 2, or 3." << std::endl;
+                break;
+        }
+    }
     
     client_socket.close_sockfd();
 
