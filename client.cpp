@@ -6,6 +6,7 @@
 #include <netinet/in.h> // Структура sockaddr_in, константи AF_INET, IPPROTO_UDP
 #include <arpa/inet.h>  // Перетворення адрес: htons(), inet_pton()
 #include <unistd.h>     
+#include <cerrno>
 
 
 class client{
@@ -20,6 +21,7 @@ class client{
         void set_timeout(const int seconds);
 
         void send_message(const std::string &message);
+        void recive_message();
 };
 
 
@@ -92,13 +94,35 @@ void client::send_message(const std::string &message){
     }
 }
 
+void client::recive_message(){
+    char buffer[1024];
+    struct sockaddr_in from_addr;
+    socklen_t from_len = sizeof(from_addr);
+    memset(buffer, 0, sizeof(buffer));
+
+    ssize_t bytes_recv = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
+                                  (struct sockaddr*)&from_addr, &from_len);
+    if (bytes_recv < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            std::cerr << "[TIMEOUT ERROR] Server didn`t respond on time!" << std::endl;
+        } else {
+            std::cerr << "[ERROR] Error receiving data from server!" << std::endl;
+        }
+        return;
+    }
+
+    buffer[bytes_recv] = '\0';
+    
+    std::cout << "[SERVER RESPONSE] Recieved: \"" << buffer << "\" (" << bytes_recv << " bytes)" << std::endl;
+}
+
 int main(void){
     std::cout << std::endl;
 
     std::cout << "Program started!" << std::endl;
 
     std::cout << std::endl;
-    
+
     client client_socket;
 
     client_socket.create_sockfd();
@@ -107,6 +131,7 @@ int main(void){
     client_socket.setup_server("127.0.0.1", 9999);
 
     client_socket.send_message("Hello world!");
+    client_socket.recive_message();
     
     client_socket.close_sockfd();
 

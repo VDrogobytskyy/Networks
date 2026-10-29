@@ -16,6 +16,7 @@ class server{
         void close_sockfd();
 
         void bind_socket(const int port);
+        void listen_and_respond();
 
 };
 
@@ -64,6 +65,49 @@ void server::bind_socket(const int port){
     }
 }
 
+void server::listen_and_respond(){
+
+    char buffer[1024];              
+    struct sockaddr_in client_addr; // Сюди ОС запише адресу клієнта, який надіслав пакет
+
+    socklen_t client_len = sizeof(client_addr); // Розмір структури адреси клієнта
+
+    std::cout << "Server is listening on port 9999..." << std::endl;
+    std::cout << "Waiting for UDP packets (Press Ctrl+C to stop)...\n" << std::endl;
+
+    while (true) {
+        memset(buffer, 0, sizeof(buffer));
+
+        ssize_t bytes_received = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
+                                          (struct sockaddr*)&client_addr, &client_len);
+
+        if (bytes_received < 0){
+            std::cerr << "Error receiving data!" << std::endl;
+            continue;
+        }
+
+        buffer[bytes_received] = '\0';
+
+        char client_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(client_addr.sin_addr), client_ip, INET_ADDRSTRLEN);
+        int client_port = ntohs(client_addr.sin_port);
+
+        std::cout << "[PACKET RECEIVED] From " << client_ip << ":" << client_port << std::endl;
+        std::cout << "Data: \"" << buffer << "\" (" << bytes_received << " bytes)" << std::endl;
+
+        std::string response = "Server: Message received successfully!";
+
+        ssize_t bytes_sent = sendto(sockfd, response.c_str(), response.length(), 0,
+                                    (struct sockaddr*)&client_addr, client_len);
+
+        if (bytes_sent < 0) {
+            std::cerr << "Fail to send response to client!" << std::endl;
+        } else {
+            std::cout << "Response sent back to client (" << bytes_sent << " bytes).\n" << std::endl;
+        }
+    }
+}
+
 int main(void){
     std::cout << std::endl;
 
@@ -76,6 +120,7 @@ int main(void){
     serv.create_sockfd();
 
     serv.bind_socket(9999);
+    serv.listen_and_respond();
 
     serv.close_sockfd();
 
