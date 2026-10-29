@@ -20,17 +20,6 @@ class server{
 
 };
 
-void server::close_sockfd(){
-
-    if(close(sockfd) < 0){
-        std::cerr << "Fail to close socket!" << std::endl;
-        
-        exit(1);
-    }else{
-        std::cout << "Socket was closed!" << std::endl;
-    }
-}
-
 void server::create_sockfd(){
 
     int socketFD = socket(AF_INET, SOCK_DGRAM, 0);
@@ -42,6 +31,17 @@ void server::create_sockfd(){
     }else{
         std::cout << "Socket was succesfully created! Descriptor: " << socketFD << std::endl;
         sockfd = socketFD;
+    }
+}
+
+void server::close_sockfd(){
+
+    if(close(sockfd) < 0){
+        std::cerr << "Fail to close socket!" << std::endl;
+        
+        exit(1);
+    }else{
+        std::cout << "Socket was closed!" << std::endl;
     }
 }
 
@@ -108,7 +108,7 @@ void server::listen_and_respond(){
 
             response = "{\"status\":200,\"action\":\"PONG\",\"server\":\"Kyiv-Central\",\"status\":\"OK\"}";
         } else{
-            
+
             response = "{\"status\":400,\"error\":\"Unknown action\"}";
         }
 
